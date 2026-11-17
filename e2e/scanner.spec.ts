@@ -59,6 +59,12 @@ test("real UI integrates collection, algorithm, chart and filters with controlle
     path: `/tmp/fast-sweep-${test.info().project.name}.png`,
     fullPage: true,
   });
+  await page.getByLabel("방향").selectOption("ALL");
+  await expect(page.locator("article")).toHaveCount(1);
+  for (const sort of ["score", "latest", "turnover"]) {
+    await page.getByLabel("정렬").selectOption(sort);
+    await expect(page.locator("article")).toHaveCount(1);
+  }
   await page.getByLabel("방향").selectOption("SHORT");
   await expect(page.locator("article")).toContainText("SHORT");
   await page.getByLabel("최소 점수", { exact: true }).fill("100");

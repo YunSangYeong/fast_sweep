@@ -2,6 +2,7 @@ import React, { useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { Bybit } from "./api";
 import { detect } from "./engine";
+import { onePerSymbol } from "./results";
 import type { Signal, MarketFilter } from "./types";
 import Chart from "./Chart";
 import "./style.css";
@@ -101,21 +102,21 @@ function App() {
       controller.current = null;
     }
   }
-  const filtered = signals
-    .filter(
+  const filtered = onePerSymbol(
+    signals.filter(
       (s) =>
         (direction === "ALL" || s.direction === direction) &&
         s.score >= min &&
         (!volume || s.volumeRatio >= 1.5) &&
         s.candles.length - 1 - s.transition < recent,
-    )
-    .sort((a, b) =>
-      sort === "score"
-        ? b.score - a.score
-        : sort === "latest"
-          ? b.candles[b.transition].time - a.candles[a.transition].time
-          : b.turnover - a.turnover,
-    );
+    ),
+  ).sort((a, b) =>
+    sort === "score"
+      ? b.score - a.score
+      : sort === "latest"
+        ? b.candles[b.transition].time - a.candles[a.transition].time
+        : b.turnover - a.turnover,
+  );
   return (
     <main>
       <header>
@@ -301,7 +302,7 @@ function App() {
       <div className="cards">
         {filtered.map((s) => (
           <article
-            key={s.id}
+            key={s.symbol}
             className={s.direction === "LONG" ? "long" : "short"}
           >
             <div className="cardhead">
