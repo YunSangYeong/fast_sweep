@@ -9,6 +9,8 @@ import {
   type Time,
 } from "lightweight-charts";
 import type { Signal } from "./types";
+const VISIBLE_CANDLES = 50;
+
 export default function Chart({ signal: s }: { signal: Signal }) {
   const host = useRef<HTMLDivElement>(null);
   const [visible, setVisible] = useState(false);
@@ -72,7 +74,7 @@ export default function Chart({ signal: s }: { signal: Signal }) {
         return info;
       },
     });
-    const data = s.candles.slice(-100);
+    const data = s.candles.slice(-VISIBLE_CANDLES);
     series.setData(
       data.map((c) => ({ ...c, time: (c.time / 1000) as UTCTimestamp })),
     );
@@ -96,7 +98,7 @@ export default function Chart({ signal: s }: { signal: Signal }) {
       { index: s.sweep, text: "SWEEP" },
       ...(s.mss === undefined ? [] : [{ index: s.mss, text: "MSS" }]),
     ]
-      .filter((m) => m.index >= s.candles.length - 100)
+      .filter((m) => m.index >= s.candles.length - VISIBLE_CANDLES)
       .map((m) => ({
         time: (s.candles[m.index].time / 1000) as UTCTimestamp,
         position: s.direction === "LONG" ? "belowBar" as const : "aboveBar" as const,
@@ -137,7 +139,7 @@ export default function Chart({ signal: s }: { signal: Signal }) {
       }
       ctx.fillStyle = "#7184a0";
       for (const p of s.pivots.filter(
-        (p) => p.index >= s.candles.length - 100,
+        (p) => p.index >= s.candles.length - VISIBLE_CANDLES,
       )) {
         const x = chart
             .timeScale()
