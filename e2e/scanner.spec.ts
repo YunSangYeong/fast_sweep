@@ -83,3 +83,67 @@ test("API failure remains an error, not an empty successful scan", async ({
     0,
   );
 });
+
+test("market selector defaults to coins and changes the actual scan universe", async ({
+  page,
+}) => {
+  const requested: string[] = [];
+  const instruments = [
+    { symbol: "BTCUSDT", symbolType: "" },
+    { symbol: "NEWUSDT", symbolType: "innovation" },
+    { symbol: "NVDAUSDT", symbolType: "stock" },
+    { symbol: "GOLDUSDT", symbolType: "commodity" },
+  ].map((i) => ({
+    ...i,
+    status: "Trading",
+    contractType: "LinearPerpetual",
+    quoteCoin: "USDT",
+  }));
+  const end = Math.floor(Date.now() / 900000) * 900000;
+  const candles = Array.from({ length: 85 }, (_, i) => [
+    String(end - (85 - i) * 900000),
+    "100",
+    "101",
+    "99",
+    "100",
+    "100",
+    "10000",
+  ]);
+  await page.route("https://api.bybit.com/**", async (route) => {
+    const url = new URL(route.request().url());
+    let result;
+    if (url.pathname.endsWith("instruments-info"))
+      result = { list: instruments };
+    else if (url.pathname.endsWith("tickers"))
+      result = {
+        list: instruments.map((i) => ({
+          symbol: i.symbol,
+          lastPrice: "100",
+          turnover24h: "20000000",
+        })),
+      };
+    else {
+      requested.push(url.searchParams.get("symbol")!);
+      result = { list: [...candles].reverse() };
+    }
+    await route.fulfill({ json: { retCode: 0, result } });
+  });
+  await page.goto("/");
+  await expect(page.getByLabel("시장 구분")).toHaveValue("coin");
+  for (const [market, expected] of [
+    ["coin", ["BTCUSDT", "NEWUSDT"]],
+    ["stock", ["NVDAUSDT"]],
+    ["all", instruments.map((i) => i.symbol)],
+  ] as const) {
+    if (market !== "coin") {
+      await page.getByLabel("시장 구분").selectOption(market);
+      await expect(page.locator(".status span").first()).toContainText("대기");
+    }
+    requested.length = 0;
+    await page.getByRole("button", { name: /시장 검색/ }).click();
+    await expect(page.locator(".status span").first()).toHaveText(
+      `검색 완료 ${expected.length}/${expected.length}`,
+    );
+    expect([...requested].sort()).toEqual([...expected].sort());
+  }
+});

@@ -1,4 +1,5 @@
-import { INTERVAL, type Candle } from "./types";
+import { matchesMarket, marketKind } from "./markets";
+import { INTERVAL, type Candle, type MarketFilter } from "./types";
 const wait = (ms: number, signal: AbortSignal) =>
   new Promise<void>((resolve, reject) => {
     const done = () => {
@@ -55,12 +56,17 @@ export class Bybit {
       "API 요청 실패: 재시도 한도 초과 (네트워크/CORS/호출 제한 확인)",
     );
   }
-  async universe(min: number, signal: AbortSignal) {
+  async universe(
+    min: number,
+    signal: AbortSignal,
+    market: MarketFilter = "coin",
+  ) {
     const instruments: {
       symbol: string;
       status: string;
       contractType: string;
       quoteCoin: string;
+      symbolType?: string;
     }[] = [];
     let cursor = "";
     const seen = new Set<string>();
@@ -81,15 +87,16 @@ export class Bybit {
     const tickers = await this.request<{
       list: { symbol: string; lastPrice: string; turnover24h: string }[];
     }>("tickers", {}, signal);
-    const allowed = new Set(
+    const allowed = new Map(
       instruments
         .filter(
           (x) =>
             x.status === "Trading" &&
             x.contractType === "LinearPerpetual" &&
-            x.quoteCoin === "USDT",
+            x.quoteCoin === "USDT" &&
+            matchesMarket(x.symbolType, market),
         )
-        .map((x) => x.symbol),
+        .map((x) => [x.symbol, marketKind(x.symbolType)] as const),
     );
     return tickers.list
       .filter(
@@ -100,6 +107,7 @@ export class Bybit {
       )
       .map((x) => ({
         symbol: x.symbol,
+        market: allowed.get(x.symbol)!,
         price: Number(x.lastPrice),
         turnover: Number(x.turnover24h),
       }));

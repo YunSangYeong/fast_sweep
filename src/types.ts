@@ -1,3 +1,5 @@
+export type MarketFilter = "coin" | "stock" | "all";
+export type MarketKind = "coin" | "stock" | "other";
 export const INTERVAL = 900_000;
 export interface Candle {
   time: number;
@@ -27,6 +29,7 @@ export interface Plan {
   passed: boolean;
 }
 export interface Signal {
+  market?: MarketKind;
   id: string;
   symbol: string;
   direction: "LONG" | "SHORT";

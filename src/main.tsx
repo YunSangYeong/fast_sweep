@@ -2,7 +2,7 @@ import React, { useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { Bybit } from "./api";
 import { detect } from "./engine";
-import type { Signal } from "./types";
+import type { Signal, MarketFilter } from "./types";
 import Chart from "./Chart";
 import "./style.css";
 const fmt = (n: number) =>
@@ -13,6 +13,7 @@ const date = (n: number) =>
     hour12: false,
   });
 function App() {
+  const [market, setMarket] = useState<MarketFilter>("coin");
   const [direction, D] = useState("ALL"),
     [min, M] = useState(0),
     [recent, R] = useState(10),
@@ -31,6 +32,16 @@ function App() {
     [asOf, A] = useState(0),
     [finished, F] = useState(false);
   const controller = useRef<AbortController | null>(null);
+  function changeMarket(value: MarketFilter) {
+    setMarket(value);
+    setSignals([]);
+    setTotal(null);
+    setDone(0);
+    setErrors([]);
+    setStatus("대기 · 시장을 선택했습니다. 검색을 시작하세요");
+    A(0);
+    F(false);
+  }
   async function scan() {
     const abort = new AbortController();
     controller.current = abort;
@@ -46,7 +57,7 @@ function App() {
     try {
       const api = new Bybit(base);
       localStorage.setItem("bybit-base", base);
-      const universe = await api.universe(turn, abort.signal);
+      const universe = await api.universe(turn, abort.signal, market);
       setTotal(universe.length);
       setStatus("15분봉 검색 중");
       let cursor = 0;
@@ -64,7 +75,10 @@ function App() {
                 at,
                 30,
               );
-              setSignals((old) => [...old, ...found]);
+              setSignals((old) => [
+                ...old,
+                ...found.map((s) => ({ ...s, market: item.market })),
+              ]);
             } catch (e) {
               if (abort.signal.aborted) break;
               setErrors((old) => [...old, `${item.symbol}: ${String(e)}`]);
@@ -117,6 +131,18 @@ function App() {
           검색 조건 <span>15m · KST</span>
         </div>
         <div className="options">
+          <label>
+            시장 구분
+            <select
+              disabled={busy}
+              value={market}
+              onChange={(e) => changeMarket(e.target.value as MarketFilter)}
+            >
+              <option value="coin">코인만</option>
+              <option value="stock">주식만</option>
+              <option value="all">전체</option>
+            </select>
+          </label>
           <label>
             방향
             <select value={direction} onChange={(e) => D(e.target.value)}>
@@ -173,6 +199,10 @@ function App() {
             거래량 1.5배 필터
           </label>
         </div>
+        <p>
+          Bybit USDT 무기한 선물 기준입니다. 주식만은 주식 연동 선물이며,
+          전체에는 원자재·외환 등도 포함됩니다. 시장 변경 후 다시 검색하세요.
+        </p>
         <details>
           <summary>API 연결 설정</summary>
           <label>
