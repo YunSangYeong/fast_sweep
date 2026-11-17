@@ -137,20 +137,6 @@ export default function Chart({ signal: s }: { signal: Signal }) {
           );
         }
       }
-      ctx.fillStyle = "#7184a0";
-      for (const p of s.pivots.filter(
-        (p) => p.index >= s.candles.length - VISIBLE_CANDLES,
-      )) {
-        const x = chart
-            .timeScale()
-            .timeToCoordinate((s.candles[p.index].time / 1000) as UTCTimestamp),
-          y = series.priceToCoordinate(p.price);
-        if (x !== null && y !== null) {
-          ctx.beginPath();
-          ctx.arc(x, y, 2, 0, Math.PI * 2);
-          ctx.fill();
-        }
-      }
     };
     chart.timeScale().subscribeVisibleLogicalRangeChange(draw);
     el.addEventListener("wheel", draw);
